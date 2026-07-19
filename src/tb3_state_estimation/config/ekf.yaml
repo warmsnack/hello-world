@@ -1,0 +1,108 @@
+# =============================================================================
+# Phase 2 - robot_localization EKF configuration.
+#
+# Fuses:
+#   * odom0 = /odom_unfiltered  (nav_msgs/Odometry from the diff_drive plugin)
+#             -> ONLY the forward linear velocity vx  (wheel encoders)
+#   * imu0  = /imu              (sensor_msgs/Imu from the noisy IMU)
+#             -> ONLY the yaw angular velocity vyaw   (gyro)
+#
+# The EKF publishes the *filtered* odom -> base_footprint TF, replacing the
+# "cheat" TF that the diff_drive plugin used to emit (publish_odom_tf=false).
+# =============================================================================
+ekf_filter_node:
+  ros__parameters:
+    # ---- timing ----
+    frequency: 30.0
+    sensor_timeout: 0.1
+    use_sim_time: true
+
+    # 2D planar robot: zero out z, roll, pitch and their derivatives.
+    two_d_mode: true
+
+    # Delay publishing the TF slightly into the future so downstream consumers
+    # (Nav2, RViz) don't extrapolate.
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+
+    print_diagnostics: true
+    debug: false
+    publish_tf: true
+    publish_acceleration: false
+
+    # ---- coordinate frames ----
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    # This filter estimates the odom->base_footprint transform, so world_frame
+    # == odom_frame (a second EKF would use world_frame=map for the map->odom TF).
+    world_frame: odom
+
+    # ---- odom0 : wheel-encoder odometry (/odom_unfiltered) ----
+    odom0: /odom_unfiltered
+    # State layout (15): [ x,  y,  z,
+    #                      roll, pitch, yaw,
+    #                      vx,  vy,  vz,
+    #                      vroll, vpitch, vyaw,
+    #                      ax,  ay,  az ]
+    # Fuse ONLY forward linear velocity (vx). The absolute pose from encoders is
+    # unreliable under slip, so we let the velocity drive the estimate.
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+    odom0_nodelay: false
+
+    # ---- imu0 : IMU (/imu) ----
+    imu0: /imu
+    # Fuse ONLY the yaw angular velocity (vyaw). Orientation from this IMU is not
+    # trustworthy (no magnetometer, initial_orientation_as_reference=false).
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_relative: false
+    imu0_queue_size: 10
+    imu0_nodelay: false
+    # The simulated IMU already applies gravity/noise; let r_l remove gravity.
+    imu0_remove_gravitational_acceleration: true
+
+    # ---- process noise covariance (15x15 diagonal shown) ----
+    process_noise_covariance: [0.05, 0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0.05, 0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0.06, 0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0.03, 0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0.03, 0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0.06, 0,     0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0.025, 0,     0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0.025, 0,    0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0.04, 0,    0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,    0.01, 0,    0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0.01, 0,    0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0.02, 0,    0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0.01, 0,    0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0.01, 0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0.015]
+
+    # ---- initial estimate covariance (15x15 diagonal) ----
+    initial_estimate_covariance: [1e-9, 0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    1e-9, 0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    1e-9, 0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    1e-9, 0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    1e-9, 0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    1e-9, 0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    1e-9, 0,    0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    1e-9, 0,    0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    1e-9, 0,     0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    0,    1e-9,  0,     0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     1e-9,  0,     0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     1e-9,  0,    0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     1e-9, 0,    0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    1e-9, 0,
+                                  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    1e-9]
