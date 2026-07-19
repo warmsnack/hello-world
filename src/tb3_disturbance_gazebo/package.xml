@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tb3_disturbance_gazebo</name>
+  <version>1.0.0</version>
+  <description>
+    Phase 1 - Physical disturbance modelling. TurtleBot3 Waffle SDF with sensor
+    noise and extreme wheel slip, plus a Gazebo Classic world containing dynamic
+    obstacles (a crossing pedestrian actor and a wandering cylinder actor) and a
+    ground-truth model_states publisher.
+  </description>
+  <maintainer email="noreply@example.com">tb3 disturbance sim</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>gazebo_ros_pkgs</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>turtlebot3_gazebo</exec_depend>
+  <exec_depend>turtlebot3_description</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <gazebo_ros gazebo_model_path="${prefix}/models"/>
+    <gazebo_ros gazebo_media_path="${prefix}/models"/>
+  </export>
+</package>
