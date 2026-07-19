@@ -1,0 +1,19 @@
+# colcon
+build/
+install/
+log/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# experiment artifacts
+tb3_eval/
+*.bag
+*.db3
+*.mcap
+
+# editor
+.vscode/
+.idea/
